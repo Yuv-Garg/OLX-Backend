@@ -3,6 +3,7 @@ package net.olxApplication.Entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import net.olxApplication.Enums.UserStatus;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 
 import java.util.List;
@@ -27,7 +28,8 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private UserStatus status;
 
     public User( String name, String email){
         this.name = name;

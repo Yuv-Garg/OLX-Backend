@@ -2,6 +2,7 @@ package net.olxApplication.Interfaces;
 
 import net.olxApplication.Entity.Transaction;
 import net.olxApplication.Entity.User;
+import net.olxApplication.Entity.Wallet;
 import net.olxApplication.Exception.NotExist;
 import net.olxApplication.RequestBodies.WalletRequestBody;
 import org.springframework.http.ResponseEntity;
@@ -11,4 +12,5 @@ import java.util.List;
 
 public interface WalletService {
      ResponseEntity<?> addBalance(Long id, WalletRequestBody balance) throws RuntimeException;
+     List<Wallet> getAll();
 }

@@ -2,6 +2,8 @@ package net.olxApplication.services;
 
 import net.olxApplication.Entity.Product;
 import net.olxApplication.Entity.User;
+import net.olxApplication.Enums.ProductStatus;
+import net.olxApplication.Enums.UserStatus;
 import net.olxApplication.Exception.BadRequest;
 import net.olxApplication.Exception.NotExist;
 import net.olxApplication.Interfaces.ProductService;
@@ -46,9 +48,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Mono<List<ProductResponse>> getUserProducts(Long userId) throws NotExist, BadRequest, RuntimeException{
+    public Mono<List<ProductResponse>> getUserProducts(Long userId) throws RuntimeException{
         User user  = userRepository.findById(userId).orElseThrow(() -> new NotExist("User Not exist"));
-        if (user.getStatus().equals("DeActive")) {
+        if (user.getStatus().equals(UserStatus.DeActive)) {
             return Mono.error(new BadRequest("User Logout"));
 
         }
@@ -80,7 +82,7 @@ public class ProductServiceImpl implements ProductService {
                 throw new BadRequest("Name or Price can't be null");
             }
             Product prod = Product.builder().name(name).price(price).build();
-            prod.setStatus("UnSold");
+            prod.setStatus(ProductStatus.UnSold);
             prod.setUser(user);
             productRepository.save(prod);
             return Mono.just(convertResponses.covertProduct(prod));

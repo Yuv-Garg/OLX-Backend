@@ -1,18 +1,14 @@
 package net.olxApplication.controller;
 
-import net.olxApplication.Entity.User;
 import net.olxApplication.Interfaces.UserService;
 import net.olxApplication.RequestBodies.UserRequestBody;
 import net.olxApplication.ResponseBodies.UserResponse;
-import net.olxApplication.services.UserServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 public class UserController {
@@ -32,21 +28,21 @@ public class UserController {
     }
 
     @GetMapping("getUser")
-    public UserResponse getUserById(@RequestParam("userId") Long id) {
+    public UserResponse getUserById(@RequestParam("user_id") Long id) {
         return userService.getUserById(id);
     }
 
     @DeleteMapping("deactivate")
-    public void deleteUser(@RequestParam("userId") Long id) {
+    public void deleteUser(@RequestParam("user_id") Long id) {
         userService.deleteUser(id);
     }
 
     @PutMapping("updateUser")
-    public UserResponse updateUser(@RequestParam("userId") Long id, @RequestBody UserRequestBody user) {
+    public UserResponse updateUser(@RequestParam("user_id") Long id, @RequestBody UserRequestBody user) {
         return userService.updateUser(id, user);
     }
     @PutMapping("activate")
-    public UserResponse activateUser(@RequestParam("userId") Long id) {
+    public UserResponse activateUser(@RequestParam("user_id") Long id) {
         return userService.activateUser(id);
     }
 

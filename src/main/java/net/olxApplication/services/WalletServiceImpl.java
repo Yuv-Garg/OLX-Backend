@@ -3,6 +3,7 @@ package net.olxApplication.services;
 import lombok.extern.slf4j.Slf4j;
 import net.olxApplication.Entity.Transaction;
 import net.olxApplication.Entity.User;
+import net.olxApplication.Entity.Wallet;
 import net.olxApplication.Exception.BadRequest;
 import net.olxApplication.Exception.NotExist;
 import net.olxApplication.Interfaces.WalletService;
@@ -56,6 +57,10 @@ public class WalletServiceImpl implements WalletService {
         } catch (Exception e) {
             throw new RuntimeException(e.getMessage());
         }
+    }
+
+    public List<Wallet> getAll(){
+        return walletRepository.findAll();
     }
 
 

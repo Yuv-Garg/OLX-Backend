@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import net.olxApplication.Enums.ProductStatus;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -22,7 +23,9 @@ public class Product {
 
 
     private Double price;
-    private String status;
+
+    @Enumerated(EnumType.STRING) // Automatically int assign krta hai
+    private ProductStatus status;
 
     @ManyToOne
     @JoinColumn(name = "user_ID")
