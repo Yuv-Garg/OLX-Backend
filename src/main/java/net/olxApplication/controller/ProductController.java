@@ -9,6 +9,7 @@ import net.olxApplication.ResponseBodies.ProductResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,27 +22,27 @@ public class ProductController {
     private ProductService productService;
 
     @GetMapping("getAllProducts")
-    public List<ProductResponse> getAll() throws RuntimeException {
+    public Mono<List<ProductResponse>> getAll() throws RuntimeException {
         return productService.getAll();
     }
 
     @GetMapping("getUserProducts")
-    public ResponseEntity<?> getUserProducts(@RequestParam("userId") Long uId)
+    public Mono<List<ProductResponse>> getUserProducts(@RequestParam("userId") Long uId)
             throws RuntimeException
     {
         return productService.getUserProducts(uId);
     }
 
     @PostMapping("createProduct")
-    public ProductResponse createNew(@RequestParam("userId") Long userId,
-                                     @RequestBody ProductRequestBody requestBody)
+    public Mono<ProductResponse> createNew(@RequestParam("userId") Long userId,
+                                           @RequestBody ProductRequestBody requestBody)
             throws RuntimeException
     {
         return productService.createProduct(userId, requestBody.getName(), requestBody.getPrice());
     }
 
     @GetMapping("getProduct")
-    public ProductResponse getProductById(@RequestParam("prodId") Long id)
+    public Mono<ProductResponse> getProductById(@RequestParam("prodId") Long id)
             throws RuntimeException
     {
         return productService.getProductById(id);
@@ -56,7 +57,7 @@ public class ProductController {
     }
 
     @GetMapping("updateProduct")
-    public ProductResponse updateProduct(@RequestParam("prodId") Long id,
+    public Mono<ProductResponse> updateProduct(@RequestParam("prodId") Long id,
                                          @RequestParam("userId") Long uId,
                                          @RequestBody ProductRequestBody prod)
             throws RuntimeException

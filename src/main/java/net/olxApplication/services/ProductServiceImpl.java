@@ -7,6 +7,7 @@ import net.olxApplication.Exception.NotExist;
 import net.olxApplication.Interfaces.ProductService;
 import net.olxApplication.RequestBodies.ProductRequestBody;
 import net.olxApplication.ResponseBodies.ProductResponse;
+import net.olxApplication.controller.ConvertResponses;
 import net.olxApplication.repository.ProductRepository;
 import net.olxApplication.repository.UserRepository;
 import org.aspectj.weaver.ast.Not;
@@ -14,7 +15,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
 import java.util.List;
 @Service
 public class ProductServiceImpl implements ProductService {
@@ -24,86 +27,78 @@ public class ProductServiceImpl implements ProductService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ConvertResponses convertResponses;
+
     @Override
-    public List<ProductResponse> getAll() throws RuntimeException{
+    public Mono<List<ProductResponse>> getAll() throws RuntimeException{
         try{
             List<Product> products = productRepository.findAll();
-            List<ProductResponse> productResponses = products.stream().map(product -> {
-                return ProductResponse.builder()
-                        .status(product.getStatus())
-                        .price(product.getPrice())
-                        .productName(product.getName())
-                        .build();
-            }).toList();
+            List<ProductResponse> productResponses = new ArrayList<>();
+            for(Product prod : products){
+                productResponses.add(convertResponses.covertProduct(prod));
+            }
 
-            return productResponses;
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
+            return Mono.just(productResponses);
+        } catch (RuntimeException e) {
+            return Mono.error(e);
         }
     }
 
     @Override
-    public ResponseEntity<?> getUserProducts(Long userId) throws NotExist, BadRequest, RuntimeException{
+    public Mono<List<ProductResponse>> getUserProducts(Long userId) throws NotExist, BadRequest, RuntimeException{
         User user  = userRepository.findById(userId).orElseThrow(() -> new NotExist("User Not exist"));
         if (user.getStatus().equals("DeActive")) {
-            throw new BadRequest("User Logout");
+            return Mono.error(new BadRequest("User Logout"));
 
         }
         if(user.getProduct().isEmpty()){
-            throw new NotExist("There are no products to show");
+            return Mono.error(new NotExist("There are no products to show"));
         }
         try{
             List<Product> products = user.getProduct();
-            List<ProductResponse> productResponses = products.stream().map(product -> {
-                ProductResponse dto = new ProductResponse();
-                dto.setStatus(product.getStatus());
-                dto.setProductName(product.getName());
-                dto.setPrice(product.getPrice());
-                return dto;
-            }).toList();
+            List<ProductResponse> productResponses = new ArrayList<>();
+            for(Product prod : products){
+                productResponses.add(convertResponses.covertProduct(prod));
+            }
 
-            return new ResponseEntity<>(productResponses, HttpStatus.OK);
-        } catch (NotExist e) {
-            throw new NotExist(e.getMessage());
-        } catch (BadRequest e) {
-            throw new BadRequest(e.getMessage());
+            return Mono.just(productResponses);
+        }catch (RuntimeException e) {
+            return Mono.error(e);
+        }
+    }
 
+    @Override
+    public Mono<ProductResponse> createProduct(Long userId, String name, Double price)  throws NotExist, BadRequest, RuntimeException{
+        try{
+            User user = userRepository.findById(userId).orElseThrow(() -> new NotExist("User Not exist"));
+            if (user.getStatus().equals("DeActive")) {
+                throw new BadRequest("User Logout");
+
+            }
+            if (name == null || price == null) {
+                throw new BadRequest("Name or Price can't be null");
+            }
+            Product prod = Product.builder().name(name).price(price).build();
+            prod.setStatus("UnSold");
+            prod.setUser(user);
+            productRepository.save(prod);
+            return Mono.just(convertResponses.covertProduct(prod));
         } catch (RuntimeException e) {
-            throw new RuntimeException(e.getMessage());
+            return Mono.error(e);
         }
     }
 
     @Override
-    public ProductResponse createProduct(Long userId, String name, Double price)  throws NotExist, BadRequest, RuntimeException{
-        User user  = userRepository.findById(userId).orElseThrow(() -> new NotExist("User Not exist"));
-        if (user.getStatus().equals("DeActive")) {
-            throw new BadRequest("User Logout");
+    public Mono<ProductResponse> getProductById(Long id) throws NotExist, BadRequest, RuntimeException{
 
-        }
-        if(name == null || price == null){
-            throw new BadRequest("Name or Price can't be null");
-        }
-        Product prod = Product.builder().name(name).price(price).build();
-        prod.setStatus("UnSold");
-        prod.setUser(user);
-        productRepository.save(prod);
-        return ProductResponse
-                .builder()
-                .productName(name)
-                .price(price)
-                .status("UnSold")
-                .build();
-    }
+        try{
+            Product prod = productRepository.findById(id).orElseThrow(()-> new NotExist("Product Not Found"));
+            return Mono.just(convertResponses.covertProduct(prod));
 
-    @Override
-    public ProductResponse getProductById(Long id) throws NotExist, BadRequest, RuntimeException{
-        Product prod = productRepository.findById(id).get();
-        return ProductResponse
-                .builder()
-                .productName(prod.getName())
-                .price(prod.getPrice())
-                .status(prod.getStatus())
-                .build();
+        } catch (NotExist e) {
+            return Mono.error(e);
+        }
     }
 
     @Override
@@ -128,20 +123,20 @@ public class ProductServiceImpl implements ProductService {
     // traverse krke ki jo field pass kri hai vo entity k str se match hoti ho
     // abhi k lie y waala exception handle nhi kia
 
-    public ProductResponse updateProduct(Long id, Long userId, ProductRequestBody prod) throws NotExist, BadRequest, RuntimeException{
+    public Mono<ProductResponse> updateProduct(Long id, Long userId, ProductRequestBody prod) throws NotExist, BadRequest, RuntimeException{
         User user  = userRepository.findById(userId).orElseThrow(() -> new NotExist("User Not exist"));
         if(user.getStatus().equals("DeActive")){
-            throw new BadRequest("User not Active");
+            return Mono.error(new BadRequest("User not Active"));
         }
         Product curr = productRepository.findById(id).orElseThrow(() -> new RuntimeException("Product Not exist"));
         if(curr.getStatus().equals("Sold") ){
-            throw new BadRequest("Product Sold Out");
+            return Mono.error(new BadRequest("Product Sold Out"));
         }
         if(!curr.getUser().getId().equals(userId)){
-            throw new BadRequest("You can't update this product");
+            return Mono.error(new BadRequest("You can't update this product"));
         }
         if(prod.getPrice()==null && prod.getName()==null){
-            throw new BadRequest("Product Not Updated");
+            return Mono.error(new BadRequest("Product Not Updated"));
         }
         if(prod.getPrice()!=null){
             curr.setPrice(prod.getPrice());
@@ -152,11 +147,6 @@ public class ProductServiceImpl implements ProductService {
 
         }
         productRepository.save(curr);
-        return ProductResponse
-                .builder()
-                .productName(curr.getName())
-                .price(curr.getPrice())
-                .status(curr.getStatus())
-                .build();
+        return Mono.just(convertResponses.covertProduct(curr));
     }
 }

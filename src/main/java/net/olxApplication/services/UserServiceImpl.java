@@ -8,6 +8,8 @@ import net.olxApplication.Interfaces.UserService;
 import net.olxApplication.RequestBodies.UserRequestBody;
 import net.olxApplication.ResponseBodies.MessageResponse;
 import net.olxApplication.ResponseBodies.OrderResponse;
+import net.olxApplication.ResponseBodies.UserResponse;
+import net.olxApplication.controller.ConvertResponses;
 import net.olxApplication.repository.UserRepository;
 import net.olxApplication.repository.WalletRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +17,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,22 +32,30 @@ public class UserServiceImpl implements UserService {
     private WalletRepository walletRepository;
 
     @Autowired
-    private static final Double DEFAULT_BALANCE = 10000.0;
+    private ConvertResponses convertResponses;
+
+
+    @Autowired
+    private static final Double DEFAULT_BALANCE = 0.0;
 
     // Get All the Users
     @Override
-    public List<User> getAll(){
-        return userRepository.findAll();
+    public List<UserResponse> getAll(){
+        List<UserResponse> userResponses = new ArrayList<>();
+        for(User user : userRepository.findAll()){
+            userResponses.add(convertResponses.covertUser(user));
+        }
+        return userResponses;
     }
 
     //Get a User with Id
     @Override
-    public Optional<User> getUserById(Long id) throws RuntimeException{
+    public UserResponse getUserById(Long id) throws RuntimeException{
         User user = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
         if(user.getStatus().equals("DeActive")){
             throw new BadRequest("User is DeActive");
         }
-        return userRepository.findById(id);
+        return convertResponses.covertUser(userRepository.findById(id).get());
     }
 
     // Add New User
@@ -54,7 +66,6 @@ public class UserServiceImpl implements UserService {
             throw new BadRequest("Invalid email format");
         }
         try{
-//            if(userRepository.findByEmail(email).isPresent()) throw new BadRequest("Email Already exist");
             Wallet wallet = new Wallet();
             wallet.setBalance(DEFAULT_BALANCE);
             walletRepository.save(wallet);
@@ -73,6 +84,33 @@ public class UserServiceImpl implements UserService {
         catch(Exception e){
             throw new RuntimeException("Error: " + e.getMessage());
         }
+
+//        return Mono.defer(() -> {
+//                            Wallet wallet = new Wallet();
+//                            wallet.setBalance(DEFAULT_BALANCE);
+//
+//                            // Save Wallet Reactively
+//                            return walletRepository.save(wallet)
+//                                    .wait(savedWallet -> {
+//                                        User user = User.builder()
+//                                                .name(name)
+//                                                .email(email)
+//                                                .wallet(savedWallet)
+//                                                .status("Active")
+//                                                .build();
+//
+//                                        // Save User Reactively
+//                                        return userRepository.save(user)
+//                                                .map(savedUser -> new ResponseEntity<>(
+//                                                        new MessageResponse("User Created Successfully"),
+//                                                        HttpStatus.CREATED
+//                                                ));
+//                                    });
+//                        })
+//                .onErrorResume(BadRequest.class, e ->
+//                        Mono.just(new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST)))
+//                .onErrorResume(e ->
+//                        Mono.just(new ResponseEntity<>("Unexpected Error: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR)));
     }
 
 
@@ -90,42 +128,47 @@ public class UserServiceImpl implements UserService {
 
 
     @Override
-    public User updateUser(Long id, UserRequestBody user) throws RuntimeException{
+    public UserResponse updateUser(Long id, UserRequestBody user) throws RuntimeException{
         User curr = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
         curr.setEmail(user.getEmail());
         curr.setName(user.getName());
         userRepository.save(curr);
-        return curr;
+        return convertResponses.covertUser(curr);
     }
 
     @Override
-    public User activateUser(Long id) throws RuntimeException{
+    public UserResponse activateUser(Long id) throws RuntimeException{
         User user = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
         if(user.getStatus().equals("Active")){
             throw new BadRequest("User is Already Active");
         }
         user.setStatus("Active");
-        return userRepository.save(user);
+        return convertResponses.covertUser(userRepository.save(user));
     }
 
     @Override
-    public List<User> filterUsers(Long userId, String name , String email ) throws RuntimeException{
+
+    // Id ka error aaara
+    public List<UserResponse> filterUsers(Long userId, String name , String email ) throws RuntimeException{
         try{
+            List<User> users = new ArrayList<>();
             if (userId != null) {
-                return userRepository.findById(userId)
-                        .map(List::of)
-                        .orElseThrow(() -> new NotExist("User with ID " + userId + " not found."));
+                User user = userRepository.findById(userId).orElseThrow(() -> new NotExist("User with ID " + userId + " not found."));
+                users.add(user);
             } else if (email != null) {
-                return userRepository.findByEmail(email).map(List::of).orElseThrow(() -> new NotExist(" No User exist for this email"));
+                users = userRepository.findByEmail(email).map(List::of).orElseThrow(() -> new NotExist(" No User exist for this email"));
             } else if (name != null) {
-                List<User> users = userRepository.findByName(name);
-                if (users.isEmpty()) {
+                if (userRepository.findByName(name).isEmpty()) {
                     throw new NotExist("No users found with name " + name + ".");
                 }
-                return users;
             } else {
                 throw new BadRequest("At least one filter (userId, name, or email) must be provided.");
             }
+            List<UserResponse> userResponses = new ArrayList<>();
+            for(User user : users){
+                userResponses.add(convertResponses.covertUser(user));
+            }
+            return userResponses;
         }catch (BadRequest e){
             throw new BadRequest(e.getMessage());
 

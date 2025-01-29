@@ -34,7 +34,7 @@ public class User {
         this.email = email;
     }
 
-    @OneToOne( cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne( cascade = CascadeType.ALL)
     @JoinColumn(name = "wallet_id")
     private Wallet wallet;
 
