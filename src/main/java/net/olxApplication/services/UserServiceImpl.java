@@ -1,6 +1,7 @@
 
 package net.olxApplication.services;
 
+import lombok.AllArgsConstructor;
 import net.olxApplication.Entity.User;
 import net.olxApplication.Entity.Wallet;
 import net.olxApplication.Enums.UserStatus;
@@ -13,7 +14,6 @@ import net.olxApplication.ResponseBodies.UserResponse;
 import net.olxApplication.controller.ConvertResponses;
 import net.olxApplication.repository.UserRepository;
 import net.olxApplication.repository.WalletRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -23,43 +23,51 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@AllArgsConstructor
 public class UserServiceImpl implements UserService {
-    @Autowired
-    private UserRepository userRepository;
 
-    @Autowired
-    private WalletRepository walletRepository;
-
-    @Autowired
-    private ConvertResponses convertResponses;
-
-
+    private final UserRepository userRepository;
+    private final WalletRepository walletRepository;
+    private final ConvertResponses convertResponses;
     private static final Double DEFAULT_BALANCE = 10000.0;
 
     // Get All the Users
     @Override
     public List<UserResponse> getAll() {
-        List<UserResponse> userResponses = new ArrayList<>();
-        for (User user : userRepository.findAll()) {
-            userResponses.add(convertResponses.covertUser(user));
+        try{
+            List<UserResponse> userResponses = new ArrayList<>();
+            for (User user : userRepository.findAll()) {
+                userResponses.add(convertResponses.covertUser(user));
+            }
+            return userResponses;
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
         }
-        return userResponses;
     }
 
-    //Get a User with Id
+    //Get User with Id
     @Override
     public UserResponse getUserById(Long id) throws RuntimeException {
-        User user = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
-        if (user.getStatus().equals(UserStatus.DeActive)) {
-            throw new BadRequest("User is DeActive");
+        try{
+            User user = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
+//            if (user.getStatus().equals(UserStatus.DeActive)) {
+//                throw new BadRequest("User is DeActive");
+//            }
+            return convertResponses.covertUser(user);
+        } catch (NotExist e) {
+            throw new NotExist(e.getMessage());
+        } catch (BadRequest e) {
+            throw new BadRequest(e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
         }
-        return convertResponses.covertUser(user);
     }
 
     // Add New User
     @Override
     @Transactional
-    public ResponseEntity<?> createUser(String name, String email) throws RuntimeException {
+//    public ResponseEntity<MessageResponse> createUser(String name, String email) throws RuntimeException {
+    public ResponseEntity<UserResponse> createUser(String name, String email) throws RuntimeException {
         if (!email.matches("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")) {
             throw new BadRequest("Invalid email format");
         }
@@ -75,7 +83,8 @@ public class UserServiceImpl implements UserService {
                     .status(UserStatus.Active)
                     .build();
             userRepository.save(user);
-            return new ResponseEntity<>(new MessageResponse("User Created Successfully"), HttpStatus.CREATED);
+            return new ResponseEntity<>(convertResponses.covertUser(user), HttpStatus.CREATED);
+//            return new ResponseEntity<>(new MessageResponse("User Created Successfully"), HttpStatus.CREATED);
         } catch (BadRequest e) {
             throw new BadRequest(e.getMessage());
         } catch (Exception e) {
@@ -88,37 +97,65 @@ public class UserServiceImpl implements UserService {
     // Changes the Status of the User ("Active" , "DeActive" )
     @Override
     @Transactional
-    public void deleteUser(Long id) throws RuntimeException {
-        User user = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
-        if (user.getStatus().equals(UserStatus.DeActive)) {
-            throw new BadRequest("DeActive Already");
+    public MessageResponse deleteUser(Long id) throws RuntimeException {
+        try{
+            User user = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
+            if (user.getStatus().equals(UserStatus.DeActive)) {
+                throw new BadRequest("DeActive Already");
+            }
+            user.setStatus(UserStatus.DeActive);
+            userRepository.save(user);
+            return new MessageResponse("User with id: " + id + " Deactivated");
+        } catch (NotExist e) {
+            throw new NotExist(e.getMessage());
+        }catch (BadRequest e) {
+            throw new BadRequest(e.getMessage());
+        } catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
         }
-        user.setStatus(UserStatus.DeActive);
-        userRepository.save(user);
     }
 
 
     @Override
     public UserResponse updateUser(Long id, UserRequestBody user) throws RuntimeException {
-        User curr = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
-        curr.setEmail(user.getEmail());
-        curr.setName(user.getName());
-        userRepository.save(curr);
-        return convertResponses.covertUser(curr);
+        try{
+            User curr = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
+            if (curr.getStatus().equals(UserStatus.DeActive)) {
+                throw new BadRequest("User is DeActive, Can't Update details");
+            }
+            curr.setEmail(user.getEmail());
+            curr.setName(user.getName());
+            userRepository.save(curr);
+            return convertResponses.covertUser(curr);
+        } catch (NotExist e) {
+            throw new NotExist(e.getMessage());
+        }catch (BadRequest e) {
+            throw new BadRequest(e.getMessage());
+        }catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
+        }
     }
 
     @Override
     public UserResponse activateUser(Long id) throws RuntimeException {
-        User user = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
-        if (user.getStatus().equals(UserStatus.Active)) {
-            throw new BadRequest("User is Already Active");
+        try{
+            User user = userRepository.findById(id).orElseThrow(() -> new NotExist("User not exist"));
+            if (user.getStatus().equals(UserStatus.Active)) {
+                throw new BadRequest("User is Already Active");
+            }
+            user.setStatus(UserStatus.Active);
+            return convertResponses.covertUser(userRepository.save(user));
+        } catch (NotExist e) {
+            throw new NotExist(e.getMessage());
+        }catch (BadRequest e) {
+            throw new BadRequest(e.getMessage());
+        }catch (Exception e) {
+            throw new RuntimeException(e.getMessage());
         }
-        user.setStatus(UserStatus.Active);
-        return convertResponses.covertUser(userRepository.save(user));
     }
 
-    @Override
 
+    @Override
     // Id ka error aaara
     public List<UserResponse> filterUsers(Long userId, String name, String email) throws RuntimeException {
         try {

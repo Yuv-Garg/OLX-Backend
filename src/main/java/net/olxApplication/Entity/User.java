@@ -44,7 +44,6 @@ public class User {
     private List<Order> orders;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-//    @JsonIgnore
     private List<Product> product;
 
 

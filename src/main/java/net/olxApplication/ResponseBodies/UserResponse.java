@@ -24,9 +24,9 @@ public class UserResponse {
 
     private Double walletBalance;
 
-    private long orderNumber;
+    private Long orderNumber;
 
-    private long productsAdded;
+    private Long productsAdded;
 
     @Enumerated
     private UserStatus userStatus;

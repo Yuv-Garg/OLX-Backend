@@ -1,9 +1,11 @@
 package net.olxApplication.services;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.olxApplication.Entity.Transaction;
 import net.olxApplication.Entity.User;
 import net.olxApplication.Entity.Wallet;
+import net.olxApplication.Enums.UserStatus;
 import net.olxApplication.Exception.BadRequest;
 import net.olxApplication.Exception.NotExist;
 import net.olxApplication.Interfaces.WalletService;
@@ -24,20 +26,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-@Slf4j
 @Service
+@AllArgsConstructor
 public class WalletServiceImpl implements WalletService {
 
-    @Autowired
     private WalletRepository walletRepository;
-
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
     private UserRepository userRepository;
 
-    public ResponseEntity<?> addBalance(Long id, WalletRequestBody wallet) throws RuntimeException{
+    public ResponseEntity<MessageResponse> addBalance(Long id, WalletRequestBody wallet) throws RuntimeException{
         if(wallet.getNewBalance() == null){
             throw new BadRequest("Wrong field");
         }
@@ -46,9 +42,12 @@ public class WalletServiceImpl implements WalletService {
         }
         try{
             User user = userRepository.findById(id).orElseThrow(() -> new NotExist("User Not exist"));
+            if(user.getStatus().equals(UserStatus.DeActive)){
+                throw new BadRequest("User is Deactive");
+            }
             user.getWallet().setBalance(user.getWallet().getBalance() + wallet.getNewBalance());
             walletRepository.save(user.getWallet());
-            MessageResponse messageResponse = new MessageResponse("Your Updated Balance is " + user.getWallet().getBalance());
+            MessageResponse messageResponse = new MessageResponse("Your Updated Balance is " + user.getWallet().getBalance().toString());
             return new ResponseEntity<>(messageResponse, HttpStatus.OK);
         } catch (NotExist e) {
             throw new NotExist(e.getMessage());

@@ -10,6 +10,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import net.olxApplication.Enums.OrderStatus;
 
+import java.time.LocalDateTime;
+
 @Data
 @NoArgsConstructor
 @Builder
@@ -24,4 +26,5 @@ public class OrderResponse {
 
     private String productName;
     private Double price;
+    private LocalDateTime dateAndTime;
 }

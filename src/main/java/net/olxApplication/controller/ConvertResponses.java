@@ -17,8 +17,8 @@ public class ConvertResponses {
                 .email(user.getEmail())
                 .walletBalance(user.getWallet().getBalance())
                 .userStatus(user.getStatus())
-                .orderNumber(user.getOrders().size())
-                .productsAdded(user.getProduct().size())
+                .orderNumber(user.getOrders() != null ? (long) user.getOrders().size() : 0)
+                .productsAdded(user.getOrders() != null ?  (long) user.getOrders().size() : 0)
                 .build();
 
 
@@ -28,6 +28,7 @@ public class ConvertResponses {
                 .productName(prod.getName())
                 .productStatus(prod.getStatus())
                 .price(prod.getPrice())
+//                .userName(prod.getUser().getName())
                 .build();
 
 
@@ -38,6 +39,7 @@ public class ConvertResponses {
                 .orderStatus(order.getStatus())
                 .price(order.getProduct().getPrice())
                 .productName(order.getProduct().getName())
+                .dateAndTime(order.getOrderDate())
                 .build();
 
 

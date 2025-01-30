@@ -1,11 +1,13 @@
 
 package net.olxApplication.services;
+import lombok.AllArgsConstructor;
 import net.olxApplication.Entity.Order;
 import net.olxApplication.Entity.Product;
 import net.olxApplication.Entity.Transaction;
 import net.olxApplication.Entity.User;
 import net.olxApplication.Enums.OrderStatus;
 import net.olxApplication.Enums.ProductStatus;
+import net.olxApplication.Enums.UserStatus;
 import net.olxApplication.Exception.BadRequest;
 import net.olxApplication.Exception.NotExist;
 import net.olxApplication.Interfaces.OrderService;
@@ -19,36 +21,28 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@AllArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
-    @Autowired
-    private OrderRepository orderRepository;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private ProductRepository productRepository;
-
-    @Autowired
-    private WalletRepository walletRepository;
-
-    @Autowired
-    private TransactionRepository transactionRepository;
-
-    @Autowired
-    private ConvertResponses convertResponses;
+    private final OrderRepository orderRepository;
+    private final UserRepository userRepository;
+    private final ProductRepository productRepository;
+    private final WalletRepository walletRepository;
+    private final TransactionRepository transactionRepository;
+    private final ConvertResponses convertResponses;
 
 
     @Override
     public List<OrderResponse> getOrdersByUserId(Long id) throws NotExist, BadRequest{
         try{
             User user = userRepository.findById(id).orElseThrow(() -> new NotExist("User Not exist"));
-            if (user.getStatus().equals("DeActive")) {
+            if (user.getStatus().equals(UserStatus.DeActive)) {
                 throw new BadRequest("User Logout");
 
             }
@@ -70,18 +64,18 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public ResponseEntity<?> placeOrder(Long userId, Long productId) throws NotExist, BadRequest{
+    public ResponseEntity<MessageResponse> placeOrder(Long userId, Long productId) throws NotExist, BadRequest{
 
         try{
             User user = userRepository.findById(userId).orElseThrow(() -> new NotExist("User Not exist"));
             Product prod = productRepository.findById(productId).orElseThrow(() -> new NotExist("Product Not exist"));
 
-            if (prod.getStatus().equals("Sold")) {
-                throw new BadRequest("Product Sold Out ");
+            if (user.getStatus().equals(UserStatus.DeActive)) {
+                throw new BadRequest("User Logout");
 
             }
-            if (user.getStatus().equals("DeActive")) {
-                throw new BadRequest("User Logout");
+            if (prod.getStatus().equals(ProductStatus.Sold)) {
+                throw new BadRequest("Product Sold Out ");
 
             }
             if (userId.equals(prod.getUser().getId())) {
@@ -102,6 +96,7 @@ public class OrderServiceImpl implements OrderService {
                     .user(user)
                     .product(prod)
                     .status(OrderStatus.placed)
+                    .orderDate(LocalDateTime.now())
                     .build();
 
             Transaction transaction =  Transaction.builder()
@@ -113,7 +108,7 @@ public class OrderServiceImpl implements OrderService {
 
             orderRepository.save(order);
 
-            return new ResponseEntity<>(new MessageResponse("Order placed successfull for " + prod.getName() + " and price " + prod.getPrice()), HttpStatus.OK);
+            return new ResponseEntity<>(new MessageResponse("Order placed successfull for " + prod.getName() + " and price " + prod.getPrice() + " with orderId  " + order.getId()), HttpStatus.OK);
         } catch (BadRequest e) {
             throw new BadRequest(e.getMessage());
         } catch (NotExist e) {
@@ -126,10 +121,12 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public ResponseEntity<?> cancelOrder(Long orderId) throws NotExist, RuntimeException {
+    public ResponseEntity<OrderResponse> cancelOrder(Long orderId) throws NotExist, RuntimeException {
         try{
             Order order = orderRepository.findById(orderId).orElseThrow(() -> new NotExist("Order Not exist"));
-
+            if(order.getStatus().equals(OrderStatus.canceled)){
+                throw new BadRequest("Order already canceled");
+            }
             Product prod = order.getProduct();
             prod.setStatus(ProductStatus.UnSold);
             User user = order.getUser();
@@ -148,7 +145,9 @@ public class OrderServiceImpl implements OrderService {
             return new ResponseEntity<>(convertResponses.covertOrder(order), HttpStatus.OK);
         } catch (NotExist e) {
             throw new NotExist(e.getMessage());
-        }catch (Exception e) {
+        }catch (BadRequest e) {
+            throw new BadRequest(e.getMessage());
+        } catch (Exception e) {
             throw new RuntimeException("Error: " + e.getMessage());
         }
 
